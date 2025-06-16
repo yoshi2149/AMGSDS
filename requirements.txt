@@ -4,3 +4,4 @@ numpy
 pandas
 netCDF4
 pyngrok
+xarray
