@@ -6,4 +6,3 @@ netCDF4
 pyngrok
 xarray
 matplotlib
-threading
