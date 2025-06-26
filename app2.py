@@ -18,70 +18,83 @@ app = Flask(__name__)
 
 @app.route("/get_temp", methods=["POST"])
 def get_climate_data():
-    # --- 入力取得 ---------------------------------------------------------
-    d = request.get_json(force=True)   # force=True で Content-Type が
-                                       # 誤っていても読み取れる
+    d = request.get_json()
     lat, lon = map(float, (d["lat"], d["lon"]))
 
-    today      = datetime.utcnow().date()
-    this_year  = today.year if today.month >= 4 else today.year - 1
+    today = datetime.utcnow().date()
+    this_year = today.year if today.month >= 4 else today.year - 1
     start_year = this_year - 3
 
-    # --- 平年値 -----------------------------------------------------------
-    all_years = []
-    for y in range(start_year, start_year + 3):
-        s, e = f"{y}-04-01", f"{y+1}-03-31"
-        temp, tim, *_ = amd.GetMetData("TMP_mea", [s, e], [lat, lat, lon, lon])
+    # --- 平年値の計算（過去3年） ---
+    all_years_data = []
+    for year in range(start_year, start_year + 3):
+        start = f"{year}-04-01"
+        end = f"{year+1}-03-31"
+        temp, tim, *_ = amd.GetMetData("TMP_mea", [start, end], [lat, lat, lon, lon])
+        flat_temp = temp[:, 0, 0]
 
-        md = pd.to_datetime(tim).map(lambda x: x.strftime("%m-%d"))
-        all_years.append(pd.DataFrame({"month_day": md,
-                                       "tave": temp[:, 0, 0]}))
+        df = pd.DataFrame({
+            "datetime": pd.to_datetime(tim),
+            "tave": flat_temp
+        })
+        df["month_day"] = df["datetime"].dt.strftime("%m-%d")
+        all_years_data.append(df[["month_day", "tave"]])
 
-    df_avg = (
-        pd.concat(all_years)
-          .groupby("month_day", as_index=False)["tave"]
-          .mean()
-          .rename(columns={"tave": "tave_avg"})
-    )
+    df_concat = pd.concat(all_years_data)
+    df_avg = df_concat.groupby("month_day", as_index=False)["tave"].mean()
+    df_avg.rename(columns={"tave": "tave_avg"}, inplace=True)
 
-    # --- 今年度値 ---------------------------------------------------------
-    s, e = f"{this_year}-04-01", f"{this_year+1}-03-31"
-    temp, tim, *_ = amd.GetMetData("TMP_mea", [s, e], [lat, lat, lon, lon])
+    # 並び替え（4月始まり）
+    def reorder_from_april(df):
+        df = df.copy()
+        df["sort_key"] = pd.to_datetime("2000-" + df["month_day"])
+        df = df.sort_values("sort_key").reset_index(drop=True)
+        start_idx = df[df["month_day"] == "04-01"].index[0]
+        return pd.concat([df.iloc[start_idx:], df.iloc[:start_idx]]).drop(columns=["sort_key"]).reset_index(drop=True)
 
+    df_avg = reorder_from_april(df_avg)
+    df_avg["tave_avg"] = df_avg["tave_avg"].round(1)
+
+    # --- 今年度の実測値（＋タグ） ---
+    start_this = f"{this_year}-04-01"
+    end_this = f"{this_year + 1}-03-31"
+    temp_this, tim_this, *_ = amd.GetMetData("TMP_mea", [start_this, end_this], [lat, lat, lon, lon])
     df_this = pd.DataFrame({
-        "date"      : pd.to_datetime(tim).map(lambda d: d.date()),
-        "tave_this" : temp[:, 0, 0],
+        "date": pd.to_datetime(tim_this).map(lambda d: d.date()),
+        "tave_this": temp_this[:, 0, 0]
     })
-    df_this["month_day"] = df_this["date"].map(lambda d: d.strftime("%m-%d"))
 
-    # タグ付け
-    yesterday, forecast_end = today - timedelta(days=1), today + timedelta(days=26)
-    df_this["tag"] = np.select(
-        [df_this["date"] <= yesterday,
-         df_this["date"] <= forecast_end],
-        ["past", "forecast"],
-        default="normal"
-    )
+    yesterday = today - timedelta(days=1)
+    forecast_end = today + timedelta(days=26)
 
-    # --- normal ➔ 平年値で置換 ------------------------------------------
-    df_this = df_this.merge(df_avg, on="month_day", how="left")
-    normal = df_this["tag"] == "normal"
-    df_this.loc[normal, "tave_this"] = df_this.loc[normal, "tave_avg"]
-    df_this.drop(columns=["month_day", "tave_avg"], inplace=True)
+    def assign_tag(d):
+        if d <= yesterday:
+            return "past"
+        elif d <= forecast_end:
+            return "forecast"
+        else:
+            return "normal"
 
-    # --- NaN を None に ---------------------------------------------------
-    def _nan2none(obj):
-        if isinstance(obj, float) and math.isnan(obj):
+    df_this["tag"] = df_this["date"].map(assign_tag)
+    df_this["date"] = df_this["date"].astype(str)
+
+    # NaN → None 対応
+    def replace_nan_with_none(data):
+        if isinstance(data, list):
+            return [replace_nan_with_none(x) for x in data]
+        elif isinstance(data, dict):
+            return {k: replace_nan_with_none(v) for k, v in data.items()}
+        elif isinstance(data, float) and math.isnan(data):
             return None
-        if isinstance(obj, list):
-            return [_nan2none(v) for v in obj]
-        if isinstance(obj, dict):
-            return {k: _nan2none(v) for k, v in obj.items()}
-        return obj
+        else:
+            return data
+
+    df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
+    df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
 
     return jsonify({
-        "average"  : _nan2none(df_avg.to_dict("records")),
-        "this_year": _nan2none(df_this.to_dict("records"))
+        "average": df_avg_clean,
+        "this_year": df_this_clean
     })
 
 if __name__ == "__main__":
