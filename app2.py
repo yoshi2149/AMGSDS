@@ -20,6 +20,7 @@ app = Flask(__name__)
 def get_climate_data():
     d = request.get_json()
     lat, lon = map(float, (d["lat"], d["lon"]))
+    threshold = float(d["threshold"])
     gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()  
     gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()    
     today = datetime.utcnow().date()
@@ -104,6 +105,21 @@ def get_climate_data():
     
     mask = (df_this["date"] >= gdd1_start) & (df_this["date"] <= gdd1_end)
     df_gdd1_period = df_this.loc[mask].reset_index(drop=True)
+
+    # ──────────────────────────────────────────
+    # 1. 積算温度 DataFrame の作成
+    #    ① 日ごとの増分: max(0, tave - threshold)
+    #    ② 累積: 上記増分を累積和
+    # ──────────────────────────────────────────
+    df_gdd1 = df_gdd1_period.copy()
+    
+    # 日増分（閾値以下なら 0）
+    df_gdd1["daily_gdd"] = (df_gdd1["tave_this"] - threshold)\
+                               .clip(lower=0)\
+                               .round(1)          # 小数 1 位に丸め（好みで）
+
+    # 累積和
+    df_gdd1["cum_gdd"] = df_gdd1["daily_gdd"].cumsum().round(1)
     
     # NaN → None 対応
     def replace_nan_with_none(data):
@@ -118,15 +134,18 @@ def get_climate_data():
     # ここで date 列を文字列へ統一      
     df_this["date"] = df_this["date"].map(lambda d: d.isoformat())   
     df_gdd1_period["date"] = df_gdd1_period["date"].map(lambda d: d.isoformat()) 
+    df_gdd1["date"] = df_gdd1["date"].map(lambda d: d.isoformat()) 
     
     df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
     df_gdd1_period_clean = replace_nan_with_none(df_gdd1_period.to_dict(orient="records"))
-    
+    df_gdd1_clean = replace_nan_with_none(df_gdd1.to_dict(orient="records"))
+
     return jsonify({
         "average": df_avg_clean,
         "this_year": df_this_clean,
-        "gdd1_period": df_gdd1_period_clean
+        "gdd1_period": df_gdd1_period_clean,
+        "gdd1"       : df_gdd1_clean
     })
 
 if __name__ == "__main__":
