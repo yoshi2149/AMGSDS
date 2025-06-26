@@ -20,7 +20,7 @@ app = Flask(__name__)
 def get_climate_data():
     d = request.get_json()
     lat, lon = map(float, (d["lat"], d["lon"]))
-
+    gdd1_start, gdd2_end = map(float, (d["gdd1_start"], d["gdd2_end"]))
     today = datetime.utcnow().date()
     this_year = today.year if today.month >= 4 else today.year - 1
     start_year = this_year - 3
@@ -97,6 +97,13 @@ def get_climate_data():
     # --------------------------------------------------------------------------
     df_this.drop(columns=["month_day", "tave_avg"], inplace=True)
 
+     # --- 積算範囲の平均気温 ---
+    gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()
+    gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()
+    
+    mask = (df_this["date"] >= gdd_start) & (df_this["date"] <= gdd_end)
+    df_gdd1_period = df_this.loc[mask].reset_index(drop=True)
+    
     # NaN → None 対応
     def replace_nan_with_none(data):
         if isinstance(data, list):
@@ -109,13 +116,16 @@ def get_climate_data():
             return data
     # ここで date 列を文字列へ統一      
     df_this["date"] = df_this["date"].map(lambda d: d.isoformat())   
+    df_gdd1_period["date"] = df_gdd1_period["date"].map(lambda d: d.isoformat()) 
     
     df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
-
+    df_gdd1_period_clean = replace_nan_with_none(df_gdd1_period.to_dict(orient="records"))
+    
     return jsonify({
         "average": df_avg_clean,
-        "this_year": df_this_clean
+        "this_year": df_this_clean,
+        "gdd1_period": df_gdd1_period_clean
     })
 
 if __name__ == "__main__":
