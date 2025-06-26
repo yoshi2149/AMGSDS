@@ -21,8 +21,9 @@ def get_climate_data():
     d = request.get_json()
     lat, lon = map(float, (d["lat"], d["lon"]))
     threshold = float(d["threshold"])
-    gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()  
-    gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()    
+    gdd1_target = float(d["gdd1"])
+    ct1_start = datetime.fromisoformat(d["ct1_start"]).date()  
+    ct1_end   = datetime.fromisoformat(d["ct1_end"]).date()    
     today = datetime.utcnow().date()
     this_year = today.year if today.month >= 4 else today.year - 1
     start_year = this_year - 3
@@ -100,26 +101,45 @@ def get_climate_data():
     df_this.drop(columns=["month_day", "tave_avg"], inplace=True)
 
      # --- 積算範囲の平均気温 ---
-    gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()
-    gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()
+    ct1_start = datetime.fromisoformat(d["ct1_start"]).date()
+    ct1_end   = datetime.fromisoformat(d["ct1_end"]).date()
     
-    mask = (df_this["date"] >= gdd1_start) & (df_this["date"] <= gdd1_end)
-    df_gdd1_period = df_this.loc[mask].reset_index(drop=True)
+    mask = (df_this["date"] >= ct1_start) & (df_this["date"] <= ct1_end)
+    df_ct1_period = df_this.loc[mask].reset_index(drop=True)
 
     # ──────────────────────────────────────────
     # 1. 積算温度 DataFrame の作成
     #    ① 日ごとの増分: max(0, tave - threshold)
     #    ② 累積: 上記増分を累積和
     # ──────────────────────────────────────────
-    df_gdd1 = df_gdd1_period.copy()
+    df_ct1 = df_ct1_period.copy()
     
     # 日増分（閾値以下なら 0）
-    df_gdd1["daily_gdd"] = (df_gdd1["tave_this"] - threshold)\
+    df_ct1["daily_ct"] = (df_ct1["tave_this"] - threshold)\
                                .clip(lower=0)\
                                .round(1)          # 小数 1 位に丸め（好みで）
-
+    
     # 累積和
-    df_gdd1["cum_gdd"] = df_gdd1["daily_gdd"].cumsum().round(1)
+    df_ct1["cum_ct"] = df_ct1["daily_ct"].cumsum().round(1)
+
+    # ───────────────────────────────────────────────
+    # 1. 目標値に最も近い日を抽出
+    # ───────────────────────────────────────────────
+    df_ct1["abs_diff"] = (df_ct1["cum_ct"] - gdd1_target).abs()
+    idx_closest = df_ct1["abs_diff"].idxmin()      # 最小誤差の行番号
+    row_close   = df_ct1.loc[idx_closest]
+
+    
+    # ───────────────────────────────────────────────
+    # 2. JSON 返却用に date を文字列化
+    # ───────────────────────────────────────────────
+    closest_dict = {
+        "date"      : row_close["date"].isoformat(),   # YYYY-MM-DD
+        "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
+        "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
+        "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
+    }
+
     
     # NaN → None 対応
     def replace_nan_with_none(data):
@@ -131,21 +151,23 @@ def get_climate_data():
             return None
         else:
             return data
+            
     # ここで date 列を文字列へ統一      
     df_this["date"] = df_this["date"].map(lambda d: d.isoformat())   
-    df_gdd1_period["date"] = df_gdd1_period["date"].map(lambda d: d.isoformat()) 
-    df_gdd1["date"] = df_gdd1["date"].map(lambda d: d.isoformat()) 
+    df_ct1_period["date"] = df_ct1_period["date"].map(lambda d: d.isoformat()) 
+    df_ct1["date"] = df_ct1["date"].map(lambda d: d.isoformat()) 
     
     df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
-    df_gdd1_period_clean = replace_nan_with_none(df_gdd1_period.to_dict(orient="records"))
-    df_gdd1_clean = replace_nan_with_none(df_gdd1.to_dict(orient="records"))
+    df_ct1_period_clean = replace_nan_with_none(df_ct1_period.to_dict(orient="records"))
+    df_ct1_clean = replace_nan_with_none(df_ct1.to_dict(orient="records"))
 
     return jsonify({
         "average": df_avg_clean,
         "this_year": df_this_clean,
-        "gdd1_period": df_gdd1_period_clean,
-        "gdd1"       : df_gdd1_clean
+        "ct1_period": df_ct1_period_clean,
+        "ct1"       : df_ct1_clean,
+        "gdd1_target": closest_dict
     })
 
 if __name__ == "__main__":
