@@ -107,7 +107,9 @@ def get_climate_data():
             return None
         else:
             return data
-
+    # ここで date 列を文字列へ統一      
+    df_this["date"] = df_this["date"].map(lambda d: d.isoformat())   
+    
     df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
 
