@@ -102,7 +102,7 @@ def get_climate_data():
     gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()
     gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()
     
-    mask = (df_this["date"] >= gdd_start) & (df_this["date"] <= gdd_end)
+    mask = (df_this["date"] >= gdd1_start) & (df_this["date"] <= gdd1_end)
     df_gdd1_period = df_this.loc[mask].reset_index(drop=True)
     
     # NaN → None 対応
