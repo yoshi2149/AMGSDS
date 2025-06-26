@@ -20,7 +20,8 @@ app = Flask(__name__)
 def get_climate_data():
     d = request.get_json()
     lat, lon = map(float, (d["lat"], d["lon"]))
-    gdd1_start, gdd1_end = map(float, (d["gdd1_start"], d["gdd1_end"]))
+    gdd1_start = datetime.fromisoformat(d["gdd1_start"]).date()  
+    gdd1_end   = datetime.fromisoformat(d["gdd1_end"]).date()    
     today = datetime.utcnow().date()
     this_year = today.year if today.month >= 4 else today.year - 1
     start_year = this_year - 3
