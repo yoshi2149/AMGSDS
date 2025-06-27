@@ -221,12 +221,14 @@ def get_climate_data():
     # ここで date 列を文字列へ統一      
     df_this["date"] = df_this["date"].map(lambda d: d.isoformat())   
     df_ct1_period["date"] = df_ct1_period["date"].map(lambda d: d.isoformat()) 
+    df_ct2_period["date"] = df_ct2_period["date"].map(lambda d: d.isoformat()) 
     df_ct1["date"] = df_ct1["date"].map(lambda d: d.isoformat()) 
     df_ct2["date"] = df_ct2["date"].map(lambda d: d.isoformat()) 
     
     df_avg_clean = replace_nan_with_none(df_avg.to_dict(orient="records"))
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
     df_ct1_period_clean = replace_nan_with_none(df_ct1_period.to_dict(orient="records"))
+    df_ct2_period_clean = replace_nan_with_none(df_ct2_period.to_dict(orient="records"))
     df_ct1_clean = replace_nan_with_none(df_ct1.to_dict(orient="records"))
     df_ct2_clean = replace_nan_with_none(df_ct2.to_dict(orient="records"))
     df_forecast_clean = replace_nan_with_none(df_forecast.to_dict(orient="records"))
