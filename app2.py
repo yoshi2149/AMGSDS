@@ -239,7 +239,7 @@ def get_climate_data():
         "gdd1_target": closest_dict,
         "ct2_period": df_ct2_period_clean,
         "ct2"       : df_ct2_clean,
-        "gdd2_target": closest_dict,
+        "gdd2_target": closest2_dict,
         "forecast": df_forecast_clean
     })
 
