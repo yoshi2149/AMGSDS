@@ -66,7 +66,7 @@ def get_climate_data():
     df_this = pd.DataFrame({
         "date"      : pd.to_datetime(tim_this).map(lambda d: d.date()),
         "tave_this" : temp_this[:, 0, 0],
-        "prcp_this" : prcp_this[:, 0, 0]       # ←★ 追加 ★
+        "prcp_this" : prcp_this[:, 0, 0]       
     })    
 
     yesterday = today - timedelta(days=1)
@@ -80,6 +80,14 @@ def get_climate_data():
         else:
             return "normal"
     df_this["tag"] = df_this["date"].map(assign_tag)
+
+    df_forecast = (
+        df_this.loc[df_this["tag"] == "forecast"]
+                .reset_index(drop=True)
+    )
+    
+    # 例：必要に応じて日付を文字列化して返却用に整形
+    df_forecast["date"] = df_forecast["date"].map(lambda d: d.isoformat())
     
     # --------------------------------------------------------------------------
     # ① month_day 列を追加してキーをそろえる
@@ -169,13 +177,15 @@ def get_climate_data():
     df_this_clean = replace_nan_with_none(df_this.to_dict(orient="records"))
     df_ct1_period_clean = replace_nan_with_none(df_ct1_period.to_dict(orient="records"))
     df_ct1_clean = replace_nan_with_none(df_ct1.to_dict(orient="records"))
+    df_forecast_clean = replace_nan_with_none(df_forecast.to_dict(orient="records"))
 
     return jsonify({
         "average": df_avg_clean,
         "this_year": df_this_clean,
         "ct1_period": df_ct1_period_clean,
         "ct1"       : df_ct1_clean,
-        "gdd1_target": closest_dict
+        "gdd1_target": closest_dict,
+        "forecast": df_forecast_clean
     })
 
 if __name__ == "__main__":
