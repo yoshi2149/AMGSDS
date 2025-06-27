@@ -62,10 +62,12 @@ def get_climate_data():
     start_this = f"{this_year}-04-01"
     end_this = f"{this_year + 1}-03-31"
     temp_this, tim_this, *_ = amd.GetMetData("TMP_mea", [start_this, end_this], [lat, lat, lon, lon])
+    prcp_this, *_ = amd.GetMetData("APCPRA",  [start_this, end_this], [lat, lat, lon, lon])
     df_this = pd.DataFrame({
-        "date": pd.to_datetime(tim_this).map(lambda d: d.date()),
-        "tave_this": temp_this[:, 0, 0]
-    })
+        "date"      : pd.to_datetime(tim_this).map(lambda d: d.date()),
+        "tave_this" : temp_this[:, 0, 0],
+        "prcp_this" : prcp_this[:, 0, 0]       # ←★ 追加 ★
+    })    
 
     yesterday = today - timedelta(days=1)
     forecast_end = today + timedelta(days=26)
@@ -77,8 +79,8 @@ def get_climate_data():
             return "forecast"
         else:
             return "normal"
-
     df_this["tag"] = df_this["date"].map(assign_tag)
+    
     # --------------------------------------------------------------------------
     # ① month_day 列を追加してキーをそろえる
     # --------------------------------------------------------------------------
@@ -121,6 +123,12 @@ def get_climate_data():
     
     # 累積和
     df_ct1["cum_ct"] = df_ct1["daily_ct"].cumsum().round(1)
+    
+    # ③ 日ごとの降水量（小数 1 位に丸めたい場合は .round(1)）
+    df_ct1["daily_pr"] = df_ct1["prcp_this"].round(1)
+    
+    # ④ 累積降水量
+    df_ct1["cum_pr"] = df_ct1["daily_pr"].cumsum().round(1)
 
     # ───────────────────────────────────────────────
     # 1. 目標値に最も近い日を抽出
