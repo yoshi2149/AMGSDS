@@ -165,7 +165,7 @@ def get_climate_data():
     ct2_start = datetime.fromisoformat(d["ct2_start"]).date()
     ct2_end   = datetime.fromisoformat(d["ct2_end"]).date()
     
-    mask = (df_this["date"] >= ct1_start) & (df_this["date"] <= ct1_end)
+    mask = (df_this["date"] >= ct2_start) & (df_this["date"] <= ct2_end)
     df_ct2_period = df_this.loc[mask].reset_index(drop=True)
 
     # ──────────────────────────────────────────
