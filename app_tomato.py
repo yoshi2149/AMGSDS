@@ -22,6 +22,7 @@ def get_climate_data():
     lat, lon = map(float, (d["lat"], d["lon"]))
     threshold = float(d["threshold"])
     gdd1_target = float(d["gdd1"])
+    hosei = float(d["hosei"])
     ct1_start = datetime.fromisoformat(d["ct1_start"]).date()  
     ct1_end   = datetime.fromisoformat(d["ct1_end"]).date()
     
@@ -139,12 +140,54 @@ def get_climate_data():
     # ④ 累積降水量
     df_ct1["cum_pr"] = df_ct1["daily_pr"].cumsum().round(1)
 
-    # ───────────────────────────────────────────────
-    # 1. 目標値に最も近い日を抽出
-    # ───────────────────────────────────────────────
+    #-------------------------------------------------------------------
+    # (a) 目標値 gdd1_target に最も近い行
+    #-------------------------------------------------------------------
     df_ct1["abs_diff"] = (df_ct1["cum_ct"] - gdd1_target).abs()
-    idx_closest = df_ct1["abs_diff"].idxmin()      # 最小誤差の行番号
+    idx_closest = df_ct1["abs_diff"].idxmin()
     row_close   = df_ct1.loc[idx_closest]
+
+    closest_dict = {
+        "date"     : row_close["date"].isoformat(),
+        "cum_ct"   : round(row_close["cum_ct"], 1),
+        "abs_diff" : round(row_close["abs_diff"], 1)
+    }
+
+    #-------------------------------------------------------------------
+    # ★ (b) hosei 補正後の目標値に最も近い行
+    #-------------------------------------------------------------------
+    corrected_target = row_close["cum_ct"] + hosei
+    df_ct1["abs_diff_corr"] = (df_ct1["cum_ct"] - corrected_target).abs()
+    idx_corr  = df_ct1["abs_diff_corr"].idxmin()
+    row_corr  = df_ct1.loc[idx_corr]
+
+    corrected_dict = {
+        "date"        : row_corr["date"].isoformat(),
+        "cum_ct"      : round(row_corr["cum_ct"], 1),
+        "abs_diff"    : round(row_corr["abs_diff_corr"], 1),
+        "target_corr" : round(corrected_target, 1)
+    }
+
+    #-------------------------------------------------------------------
+    # ★ (c) ct1_start ～ 昨日までの累積値
+    #-------------------------------------------------------------------
+    mask_hist = df_ct1["date"] <= yesterday
+    if mask_hist.any():
+        row_hist = df_ct1.loc[mask_hist].iloc[-1]
+        hist_dict = {
+            "date"   : row_hist["date"].isoformat(),
+            "cum_ct" : round(row_hist["cum_ct"], 1),
+            "cum_pr" : round(row_hist["cum_pr"], 1)
+        }
+    else:
+        hist_dict = {"date": None, "cum_ct": None, "cum_pr": None}
+
+    # ==================================================================
+    #  4. 予報部分だけ取り出し（参考）
+    # ==================================================================
+    df_forecast = (df_this.loc[df_this["tag"] == "forecast"]
+                          .reset_index(drop=True))
+    df_forecast["date"] = df_forecast["date"].map(lambda d: d.isoformat())
 
     
     # ───────────────────────────────────────────────
@@ -186,6 +229,8 @@ def get_climate_data():
         "ct1_period": df_ct1_period_clean,
         "ct1"       : df_ct1_clean,
         "gdd1_target": closest_dict,
+        "gdd1_target_corr"   : corrected_dict,      
+        "ct1_until_yesterday": hist_dict,            
         "forecast": df_forecast_clean
     })
 
