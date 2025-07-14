@@ -242,7 +242,8 @@ def get_climate_data():
     # =========================================================
     # ★ ct2_start～昨日まで
     # =========================================================
-    hist_dict2 = make_hist_dict(ct2_start, yesterday, threshold2, df_this)
+    closest2_date = row_close["date"]          # datetime.date 型
+    hist_dict2    = make_hist_dict(closest2_date, yesterday, threshold2, df_this)
     
     # NaN → None 対応
     def replace_nan_with_none(data):
