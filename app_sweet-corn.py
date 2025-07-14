@@ -174,14 +174,14 @@ def get_climate_data():
     # ───────────────────────────────────────────────
     df_ct1["abs_diff"] = (df_ct1["cum_ct"] - gdd1_target).abs()
     idx_closest = df_ct1["abs_diff"].idxmin()      # 最小誤差の行番号
-    row_close   = df_ct1.loc[idx_closest]
+    row_close1   = df_ct1.loc[idx_closest]
 
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
     # ───────────────────────────────────────────────
     closest_dict = {
-        "date"      : row_close["date"].isoformat(),   # YYYY-MM-DD
+        "date"      : row_close1["date"].isoformat(),   # YYYY-MM-DD
         "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
         "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
         "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
@@ -220,7 +220,7 @@ def get_climate_data():
     # ───────────────────────────────────────────────
     df_ct2["abs_diff"] = (df_ct2["cum_ct"] - gdd2_target).abs()
     idx_closest = df_ct2["abs_diff"].idxmin()      # 最小誤差の行番号
-    row_close   = df_ct2.loc[idx_closest]
+    row_close2   = df_ct2.loc[idx_closest]
 
 
     
@@ -228,7 +228,7 @@ def get_climate_data():
     # 2. JSON 返却用に date を文字列化
     # ───────────────────────────────────────────────
     closest2_dict = {
-        "date"      : row_close["date"].isoformat(),   # YYYY-MM-DD
+        "date"      : row_close2["date"].isoformat(),   # YYYY-MM-DD
         "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
         "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
         "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
@@ -242,8 +242,8 @@ def get_climate_data():
     # =========================================================
     # ★ ct2_start～昨日まで
     # =========================================================
-    closest2_date = row_close["date"]          # datetime.date 型
-    hist_dict2    = make_hist_dict(closest2_date, yesterday, threshold2, df_this)
+    closest1_date = row_close1["date"]          # datetime.date 型
+    hist_dict2    = make_hist_dict(closest1_date, yesterday, threshold2, df_this)
     
     # NaN → None 対応
     def replace_nan_with_none(data):
