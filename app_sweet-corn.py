@@ -182,9 +182,9 @@ def get_climate_data():
     # ───────────────────────────────────────────────
     closest_dict = {
         "date"      : row_close1["date"].isoformat(),   # YYYY-MM-DD
-        "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
-        "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
-        "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
+        "cum_ct"    : round(row_close1["cum_ct"], 1),   # 積算温度
+        "daily_ct"  : round(row_close1["daily_ct"], 1), # 参考：当日の増分
+        "abs_diff"  : round(row_close1["abs_diff"], 1)  # 誤差
     }
     
      # --- 積算範囲2 ---
@@ -229,9 +229,9 @@ def get_climate_data():
     # ───────────────────────────────────────────────
     closest2_dict = {
         "date"      : row_close2["date"].isoformat(),   # YYYY-MM-DD
-        "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
-        "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
-        "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
+        "cum_ct"    : round(row_close2["cum_ct"], 1),   # 積算温度
+        "daily_ct"  : round(row_close2["daily_ct"], 1), # 参考：当日の増分
+        "abs_diff"  : round(row_close2["abs_diff"], 1)  # 誤差
     }
     
     # =========================================================
