@@ -91,6 +91,32 @@ def get_climate_data():
                 .reset_index(drop=True)
     )
     
+    # =========================================================
+    # 📌 ヘルパー関数：任意期間の累積 GDD / 降水
+    # =========================================================
+    def make_hist_dict(date_start, date_end, thr, df_src):
+        """
+        date_start～date_end の期間について
+          ・積算気温   Σ max(0, tave_this - thr)
+          ・累積降水量 Σ prcp_this
+        を返す。期間にデータが無い場合はすべて None。
+        """
+        # 開始日が終了日より後（例：昨日 < start）のときは空辞書
+        if date_end < date_start:
+            return {"date": None, "cum_ct": None, "cum_pr": None}
+    
+        mask = (df_src["date"] >= date_start) & (df_src["date"] <= date_end)
+        if not mask.any():
+            return {"date": None, "cum_ct": None, "cum_pr": None}
+    
+        tmp = df_src.loc[mask].copy()
+        tmp["daily_ct"] = (tmp["tave_this"] - thr).clip(lower=0)
+        return {
+            "date"   : date_end.isoformat(),
+            "cum_ct" : round(tmp["daily_ct"].sum(), 1),
+            "cum_pr" : round(tmp["prcp_this"].sum(), 1)
+        }
+    
     # 例：必要に応じて日付を文字列化して返却用に整形
     df_forecast["date"] = df_forecast["date"].map(lambda d: d.isoformat())
     
@@ -196,41 +222,7 @@ def get_climate_data():
     idx_closest = df_ct2["abs_diff"].idxmin()      # 最小誤差の行番号
     row_close   = df_ct2.loc[idx_closest]
 
-    # =========================================================
-    # 📌 ヘルパー関数：任意期間の累積 GDD / 降水
-    # =========================================================
-    def make_hist_dict(date_start, date_end, thr, df_src):
-        """
-        date_start～date_end の期間について
-          ・積算気温   Σ max(0, tave_this - thr)
-          ・累積降水量 Σ prcp_this
-        を返す。期間にデータが無い場合はすべて None。
-        """
-        # 開始日が終了日より後（例：昨日 < start）のときは空辞書
-        if date_end < date_start:
-            return {"date": None, "cum_ct": None, "cum_pr": None}
-    
-        mask = (df_src["date"] >= date_start) & (df_src["date"] <= date_end)
-        if not mask.any():
-            return {"date": None, "cum_ct": None, "cum_pr": None}
-    
-        tmp = df_src.loc[mask].copy()
-        tmp["daily_ct"] = (tmp["tave_this"] - thr).clip(lower=0)
-        return {
-            "date"   : date_end.isoformat(),
-            "cum_ct" : round(tmp["daily_ct"].sum(), 1),
-            "cum_pr" : round(tmp["prcp_this"].sum(), 1)
-        }
 
-    # =========================================================
-    # ★ ct1_start～昨日まで
-    # =========================================================
-    hist_dict1 = make_hist_dict(ct1_start, yesterday, threshold, df_this)
-    
-    # =========================================================
-    # ★ ct2_start～昨日まで
-    # =========================================================
-    hist_dict2 = make_hist_dict(ct2_start, yesterday, threshold2, df_this)
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
@@ -241,6 +233,16 @@ def get_climate_data():
         "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
         "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
     }
+    
+    # =========================================================
+    # ★ ct1_start～昨日まで
+    # =========================================================
+    hist_dict1 = make_hist_dict(ct1_start, yesterday, threshold, df_this)
+    
+    # =========================================================
+    # ★ ct2_start～昨日まで
+    # =========================================================
+    hist_dict2 = make_hist_dict(ct2_start, yesterday, threshold2, df_this)
     
     # NaN → None 対応
     def replace_nan_with_none(data):
