@@ -150,20 +150,6 @@ def get_climate_data():
     idx_closest = df_ct1["abs_diff"].idxmin()      # 最小誤差の行番号
     row_close   = df_ct1.loc[idx_closest]
 
-    #-------------------------------------------------------------------
-    # ★ (c) ct1_start ～ 昨日までの累積値
-    #-------------------------------------------------------------------
-    mask_hist = df_ct1["date"] <= yesterday
-    if mask_hist.any():
-        row_hist = df_ct1.loc[mask_hist].iloc[-1]
-        hist_dict1 = {
-            "date"   : row_hist["date"].isoformat(),
-            "cum_ct" : round(row_hist["cum_ct"], 1),
-            "cum_pr" : round(row_hist["cum_pr"], 1)
-        }
-    else:
-        hist_dict1 = {"date": None, "cum_ct": None, "cum_pr": None}
-
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
@@ -210,19 +196,41 @@ def get_climate_data():
     idx_closest = df_ct2["abs_diff"].idxmin()      # 最小誤差の行番号
     row_close   = df_ct2.loc[idx_closest]
 
-    #-------------------------------------------------------------------
-    # ★ (c) ct2_start ～ 昨日までの累積値
-    #-------------------------------------------------------------------
-    mask_hist = df_ct2["date"] <= yesterday
-    if mask_hist.any():
-        row_hist = df_ct2.loc[mask_hist].iloc[-1]
-        hist_dict2 = {
-            "date"   : row_hist["date"].isoformat(),
-            "cum_ct" : round(row_hist["cum_ct"], 1),
-            "cum_pr" : round(row_hist["cum_pr"], 1)
+    # =========================================================
+    # 📌 ヘルパー関数：任意期間の累積 GDD / 降水
+    # =========================================================
+    def make_hist_dict(date_start, date_end, thr, df_src):
+        """
+        date_start～date_end の期間について
+          ・積算気温   Σ max(0, tave_this - thr)
+          ・累積降水量 Σ prcp_this
+        を返す。期間にデータが無い場合はすべて None。
+        """
+        # 開始日が終了日より後（例：昨日 < start）のときは空辞書
+        if date_end < date_start:
+            return {"date": None, "cum_ct": None, "cum_pr": None}
+    
+        mask = (df_src["date"] >= date_start) & (df_src["date"] <= date_end)
+        if not mask.any():
+            return {"date": None, "cum_ct": None, "cum_pr": None}
+    
+        tmp = df_src.loc[mask].copy()
+        tmp["daily_ct"] = (tmp["tave_this"] - thr).clip(lower=0)
+        return {
+            "date"   : date_end.isoformat(),
+            "cum_ct" : round(tmp["daily_ct"].sum(), 1),
+            "cum_pr" : round(tmp["prcp_this"].sum(), 1)
         }
-    else:
-        hist_dict2 = {"date": None, "cum_ct": None, "cum_pr": None}
+
+    # =========================================================
+    # ★ ct1_start～昨日まで
+    # =========================================================
+    hist_dict1 = make_hist_dict(ct1_start, yesterday, threshold, df_this)
+    
+    # =========================================================
+    # ★ ct2_start～昨日まで
+    # =========================================================
+    hist_dict2 = make_hist_dict(ct2_start, yesterday, threshold2, df_this)
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
