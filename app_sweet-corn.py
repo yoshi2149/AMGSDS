@@ -150,6 +150,20 @@ def get_climate_data():
     idx_closest = df_ct1["abs_diff"].idxmin()      # 最小誤差の行番号
     row_close   = df_ct1.loc[idx_closest]
 
+    #-------------------------------------------------------------------
+    # ★ (c) ct1_start ～ 昨日までの累積値
+    #-------------------------------------------------------------------
+    mask_hist = df_ct1["date"] <= yesterday
+    if mask_hist.any():
+        row_hist = df_ct1.loc[mask_hist].iloc[-1]
+        hist_dict1 = {
+            "date"   : row_hist["date"].isoformat(),
+            "cum_ct" : round(row_hist["cum_ct"], 1),
+            "cum_pr" : round(row_hist["cum_pr"], 1)
+        }
+    else:
+        hist_dict1 = {"date": None, "cum_ct": None, "cum_pr": None}
+
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
@@ -196,6 +210,19 @@ def get_climate_data():
     idx_closest = df_ct2["abs_diff"].idxmin()      # 最小誤差の行番号
     row_close   = df_ct2.loc[idx_closest]
 
+    #-------------------------------------------------------------------
+    # ★ (c) ct2_start ～ 昨日までの累積値
+    #-------------------------------------------------------------------
+    mask_hist = df_ct2["date"] <= yesterday
+    if mask_hist.any():
+        row_hist = df_ct2.loc[mask_hist].iloc[-1]
+        hist_dict2 = {
+            "date"   : row_hist["date"].isoformat(),
+            "cum_ct" : round(row_hist["cum_ct"], 1),
+            "cum_pr" : round(row_hist["cum_pr"], 1)
+        }
+    else:
+        hist_dict2 = {"date": None, "cum_ct": None, "cum_pr": None}
     
     # ───────────────────────────────────────────────
     # 2. JSON 返却用に date を文字列化
@@ -242,6 +269,8 @@ def get_climate_data():
         "ct2_period": df_ct2_period_clean,
         "ct2"       : df_ct2_clean,
         "gdd2_target": closest2_dict,
+        "ct1_until_yesterday": hist_dict1, 
+        "ct2_until_yesterday": hist_dict2, 
         "forecast": df_forecast_clean
     })
 
