@@ -156,8 +156,7 @@ def get_climate_data():
     #-------------------------------------------------------------------
     # ★ (b) hosei 補正後の目標値に最も近い行
     #-------------------------------------------------------------------
-    corrected_target = row_close["cum_ct"] + hosei
-    df_ct1["abs_diff_corr"] = (df_ct1["cum_ct"] - corrected_target).abs()
+    df_ct1["abs_diff_corr"] = (df_ct1["cum_ct"] + hosei - gdd1_target).abs()
     idx_corr  = df_ct1["abs_diff_corr"].idxmin()
     row_corr  = df_ct1.loc[idx_corr]
 
