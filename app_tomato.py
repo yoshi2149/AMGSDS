@@ -156,15 +156,15 @@ def get_climate_data():
     #-------------------------------------------------------------------
     # ★ (b) hosei 補正後の目標値に最も近い行
     #-------------------------------------------------------------------
-    df_ct1["abs_diff_corr"] = (df_ct1["cum_ct"] + hosei - gdd1_target).abs()
+    df_ct1["corrected_cum_ct"] = df_ct1["cum_ct"] +hosei
+    df_ct1["abs_diff_corr"] = (df_ct1["corrected_cum_ct"] - gdd1_target).abs()
     idx_corr  = df_ct1["abs_diff_corr"].idxmin()
     row_corr  = df_ct1.loc[idx_corr]
 
     corrected_dict = {
         "date"        : row_corr["date"].isoformat(),
-        "cum_ct"      : round(row_corr["cum_ct"], 1),
+        "cum_ct"      : round(row_corr["corrected_cum_ct"], 1),
         "abs_diff"    : round(row_corr["abs_diff_corr"], 1),
-        "target_corr" : round(corrected_target, 1)
     }
 
     #-------------------------------------------------------------------
@@ -188,16 +188,6 @@ def get_climate_data():
                           .reset_index(drop=True))
     df_forecast["date"] = df_forecast["date"].map(lambda d: d.isoformat())
 
-    
-    # ───────────────────────────────────────────────
-    # 2. JSON 返却用に date を文字列化
-    # ───────────────────────────────────────────────
-    closest_dict = {
-        "date"      : row_close["date"].isoformat(),   # YYYY-MM-DD
-        "cum_ct"    : round(row_close["cum_ct"], 1),   # 積算温度
-        "daily_ct"  : round(row_close["daily_ct"], 1), # 参考：当日の増分
-        "abs_diff"  : round(row_close["abs_diff"], 1)  # 誤差
-    }
     
     
     # NaN → None 対応
